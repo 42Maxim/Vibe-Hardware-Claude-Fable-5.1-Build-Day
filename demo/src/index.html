@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Puck — live demo</title>
+<style>/*__CSS__*/</style></head>
+<body>
+<main id="stage"><canvas id="gl"></canvas>
+  <div id="hud">
+    <div class="hud-row"><label class="tog"><input type="checkbox" id="inside"> inside</label>
+      <label class="tog">zoom <input type="range" id="zoom" min="0" max="1" step="0.01" value="0.35"></label>
+      <span class="tog dim">explode <span id="explodeval" class="mono">0%</span> <span class="dim">· scroll</span></span>
+      <select id="concept" title="form"><option value="">A · Puck (built)</option></select>
+      <label class="tog"><input type="checkbox" id="studio" checked> studio</label>
+      <span class="hint">drag to orbit · scroll to explode · double-click to reset</span></div>
+  </div>
+  <div id="labels"></div>
+  <div id="story"><div id="s_card"><div id="s_kicker" class="dim"></div><div id="s_title"></div><div id="s_line"></div><ul id="s_facts"></ul></div>
+    <div id="s_nav"><button id="s_prev">‹</button><div id="s_dots"></div><button id="s_next">›</button><button id="s_play" title="auto-play">▶</button></div></div>
+</main>
+<aside id="panel">
+  <header><h1>Puck</h1><div class="sub">presence-aware desk companion · Ø<span id="dD"></span> × <span id="dH"></span> mm</div></header>
+  <section class="card live">
+    <div class="screenwrap"><canvas id="screen" width="240" height="240"></canvas><div class="screencap">240 × 240 · GC9A01A · what ui.cpp draws</div></div>
+    <div class="state">
+      <div class="big"><span class="lbl">state</span><span id="state" class="mono">—</span><span id="tins" class="mono dim"></span></div>
+      <div><span class="lbl">last transition</span><span id="trans" class="mono">—</span></div>
+      <div><span class="lbl">outputs</span><span id="outs" class="mono dim">—</span></div>
+      <div class="batt"><span class="lbl">battery</span><span id="batt" class="mono">—</span><div class="bar"><i id="battbar"></i></div><span id="battnote" class="dim"></span></div>
+    </div>
+  </section>
+  <section class="card">
+    <h3>Senses <span class="dim">sliders drive the firmware inputs</span></h3>
+    <label>presence <span class="mono val" id="v_presence"></span><input type="range" id="presence" min="0" max="600" step="5" value="0"></label>
+    <label>light <span class="mono val" id="v_lux"></span><input type="range" id="lux" min="0" max="4" step="0.01" value="2.5"></label>
+    <label>temperature <span class="mono val" id="v_temp"></span><input type="range" id="temp" min="10" max="35" step="0.1" value="22.4"></label>
+    <label>humidity <span class="mono val" id="v_rh"></span><input type="range" id="rh" min="10" max="90" step="1" value="47"></label>
+    <label>time of day <span class="mono val" id="v_hour"></span><input type="range" id="hour" min="0" max="23.99" step="0.01" value="10.5"></label>
+    <label>Claude · 5-hour window <span class="mono val" id="v_cwin"></span><input type="range" id="cwin" min="0" max="100" step="1" value="37"></label>
+    <label>Claude · tokens today <span class="mono val" id="v_ctok"></span><input type="range" id="ctok" min="0" max="5000" step="10" value="908"></label>
+    <div class="row"><label class="tog"><input type="checkbox" id="charging"> USB-C plugged in</label><label class="tog">sim speed <select id="speed"><option value="1">1×</option><option value="5">5×</option><option value="20">20×</option></select></label></div>
+  </section>
+  <section class="card">
+    <h3>Crown <span class="dim">the one physical control</span></h3>
+    <div class="crown"><button id="ccw" title="turn counter-clockwise">◀</button><button id="press" class="knob" title="press">press</button><button id="cw" title="turn clockwise">▶</button></div>
+  </section>
+  <section class="card" id="partscard">
+    <h3>Parts <span class="dim">off-the-shelf, drawn at their real size · click to locate</span></h3>
+    <div id="partlist"></div>
+    <div id="callout" class="callout" hidden></div>
+  </section>
+  <section class="card tabs">
+    <nav><button data-tab="pins" class="on">Pins</button><button data-tab="fit">Fit</button><button data-tab="power">Power</button><button data-tab="port">Port</button></nav>
+    <div id="tab-pins" class="tab on"></div><div id="tab-fit" class="tab"></div><div id="tab-power" class="tab"></div>
+    <div id="tab-port" class="tab"><p class="notes">The state machine in this page is <b>firmware/state_machine.cpp</b> ported line by line (demo/src/state_machine.js); every timer and threshold below is read from <b>firmware/config.h</b> at build time. Change a value there, run <code>python3 build.py</code>, and this page changes with it.</p><div id="fwconsts"></div></div>
+  </section>
+  <footer class="dim">Everything on this page is computed from parts/parts.json, firmware/config.h and build/geometry.json. No libraries, no network.</footer>
+</aside>
+<script>/*__JS__*/</script>
+</body></html>

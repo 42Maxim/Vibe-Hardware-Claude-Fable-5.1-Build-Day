@@ -1,0 +1,71 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Concepts — to-scale sections</title>
+<style>
+:root{--bg:#f4f2ee;--ink:#1c1b19;--mut:#8a8580;--card:#fff;--a:#e8552b;--b:#2b6de8;--c:#2ba86a;--d:#c19a2b;--e:#7a4de8;--f:#d92b6a}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#171614;--ink:#ebe8e2;--mut:#8f8a83;--card:#211f1c}}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system,Inter,Helvetica,sans-serif;padding:24px 16px}
+h1{font-size:20px;margin:0 0 4px}h1+p{color:var(--mut);margin:0 0 20px}
+.board{background:var(--card);border-radius:12px;padding:18px 18px 8px;margin-bottom:20px;box-shadow:0 1px 0 rgba(0,0,0,.06)}
+.board h2{margin:0;font-size:16px}.board h2 span{color:var(--mut);font-weight:400;margin-left:8px}
+.board .rec{display:inline-block;background:var(--a);color:#fff;font-size:11px;padding:2px 8px;border-radius:99px;margin-left:8px;vertical-align:middle}
+.row{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+svg{background:var(--bg);border-radius:8px;max-width:100%;height:auto}
+.legend{font-size:12px;color:var(--mut);margin:8px 0 6px}.legend b{color:var(--ink)}
+.k{display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:-1px;margin-right:4px}
+</style></head><body>
+<h1>Concepts A–D, sections at 3 px per mm</h1>
+<p>Every rectangle is a real part at its surveyed size. Grey = enclosure, dashed = cavity. Grid = 10 mm.</p>
+<div id="boards"></div>
+<script>
+const S=3, C={feather:'#2b6de8',disp:'#e8552b',ring:'#d92b6a',cell:'#2ba86a',sens:'#c19a2b',enc:'#7a4de8',pres:'#0aa'};
+function svg(w,h){const n=document.createElementNS('http://www.w3.org/2000/svg','svg');n.setAttribute('width',w*S);n.setAttribute('height',h*S);n.setAttribute('viewBox',`0 0 ${w*S} ${h*S}`);
+ let g='';for(let x=0;x<=w;x+=10)g+=`<line x1="${x*S}" y1="0" x2="${x*S}" y2="${h*S}" stroke="rgba(128,128,128,.15)"/>`;for(let y=0;y<=h;y+=10)g+=`<line x1="0" y1="${y*S}" x2="${w*S}" y2="${y*S}" stroke="rgba(128,128,128,.15)"/>`;n.innerHTML=g;return n;}
+// primitives in mm; origin top-left of the board
+const R=(x,y,w,h,c,l,o)=>`<rect x="${x*S}" y="${y*S}" width="${w*S}" height="${h*S}" fill="${c}" fill-opacity="${o??.75}" stroke="${c}" stroke-width="1"/>`+(l?`<text x="${(x+w/2)*S}" y="${(y+h/2)*S+4}" font-size="10" text-anchor="middle" fill="#fff" font-family="sans-serif">${l}</text>`:'');
+const Ci=(x,y,r,c,l,o)=>`<circle cx="${x*S}" cy="${y*S}" r="${r*S}" fill="${c}" fill-opacity="${o??.75}" stroke="${c}"/>`+(l?`<text x="${x*S}" y="${y*S+4}" font-size="10" text-anchor="middle" fill="#fff" font-family="sans-serif">${l}</text>`:'');
+const Ring=(x,y,ro,ri,c,l)=>`<path fill-rule="evenodd" fill="${c}" fill-opacity=".7" d="M${(x-ro)*S},${y*S}a${ro*S},${ro*S} 0 1,0 ${2*ro*S},0a${ro*S},${ro*S} 0 1,0 ${-2*ro*S},0zM${(x-ri)*S},${y*S}a${ri*S},${ri*S} 0 1,0 ${2*ri*S},0a${ri*S},${ri*S} 0 1,0 ${-2*ri*S},0z"/>`+(l?`<text x="${x*S}" y="${(y-ro+2.5)*S+3}" font-size="9" text-anchor="middle" fill="#fff" font-family="sans-serif">${l}</text>`:'');
+const Shell=(x,y,w,h,r)=>`<rect x="${x*S}" y="${y*S}" width="${w*S}" height="${h*S}" rx="${(r||0)*S}" fill="#999" fill-opacity=".25" stroke="#666"/>`;
+const Cav=(x,y,w,h,r)=>`<rect x="${x*S}" y="${y*S}" width="${w*S}" height="${h*S}" rx="${(r||0)*S}" fill="none" stroke="#666" stroke-dasharray="4 3"/>`;
+const T=(x,y,s)=>`<text x="${x*S}" y="${y*S}" font-size="11" fill="currentColor" font-family="sans-serif">${s}</text>`;
+const boards=[];
+function board(title,sub,rec,views,legend){boards.push({title,sub,rec,views,legend});}
+
+// A · Puck  Ø74 x 24  (cavity Ø68 x 20)
+{const w=90,h=90,cx=45,cy=45;
+ const top=svg(w,h);top.innerHTML+=`<circle cx="${cx*S}" cy="${cy*S}" r="${37*S}" fill="#999" fill-opacity=".25" stroke="#666"/><circle cx="${cx*S}" cy="${cy*S}" r="${34*S}" fill="none" stroke="#666" stroke-dasharray="4 3"/>`
+  +R(cx-11.35,cy-19.8,22.7,52.3,C.feather,'Feather')+R(cx-14.5,cy-3,29,36,C.cell,'500 mAh',.5)
+  +R(cx-32,cy-12.75,17.6,25.5,C.sens,'SHT41')+R(cx+14,cy-12.75,17.6,25.5,C.sens,'VEML')
+  +R(cx-12.75,cy-33,25.5,4.7,C.pres,'STHS34PF80')
+  +Ring(cx,cy,32.75,26.15,C.ring,'NeoPixel 24')+R(cx-21.2,cy-18.1,42.4,36.2,C.disp,'GC9A01 1.28″',.85)+Ci(cx,cy,16.25,'#111','240×240',.9)
+  +R(cx+31,cy-6.25,13.4,12.5,C.enc,'PEC11R')+R(cx+37,cy-3,8,6,C.enc,'',.5)+T(2,6,'top · front is down · USB-C at rear');
+ const side=svg(w,40);side.innerHTML+=Shell(cx-37,8,74,24,1)+Cav(cx-34,10,68,20)
+  +R(cx-14.5,26.5,29,4.75,C.cell,'cell 4.75')+R(cx-11.35,18.8,22.7,7.2,C.feather,'Feather 7.2')+R(cx-21.2,11.8,42.4,5.4,C.disp,'display 5.4')
+  +Ring(0,0,0,0,'')+R(cx-32.75,13.5,6.6,3.2,C.ring,'')+R(cx+26.15,13.5,6.6,3.2,C.ring,'')+R(cx-34,15,4.7,17.6,C.pres,'',.6)
+  +R(cx+31,12,3,12.5,C.enc,'')+R(cx+37,15,13,6,C.enc,'crown',.5)+T(2,6,'side section · left is front');
+ board('A · Puck','Ø74 × 24 mm — 24-ring ID 52.3 clears the 42.4 × 36.2 display module',true,[top,side],
+ 'Stack 2 + 4.75 + 0.5 + 7.2 + 0.5 + 5.4 + 3 = 23.4 mm. Presence sensor stands against the front wall, 80° cone forward.');}
+
+// B · Tile  32 x 16 x 62 standing
+{const top=svg(60,40);top.innerHTML+=Shell(14,12,32,16,2)+Cav(16,14,28,12)+R(18.5,15,22.9,2.5,C.feather,'',.9)+R(20,19,19.6,5.2,C.cell,'350 mAh')+R(17,25,25.5,4.7,C.pres,'presence')+T(2,8,'top · 32 × 16 footprint');
+ const front=svg(60,80);front.innerHTML+=Shell(14,8,32,62,2)+Cav(16,10,28,58)+R(18.5,12,22.9,50.8,C.feather,'Reverse TFT Feather',.5)+R(20,20,20,13,C.disp,'240×135')+R(21,13,3,3,C.enc,'')+R(26,13,3,3,C.enc,'')+R(31,13,3,3,C.enc,'')+R(17,58,25.5,4.7,C.pres,'STHS34PF80')+R(19,64,22,3,C.sens,'SHT41')+T(2,6,'front · display is 1.14″, buttons above');
+ board('B · Tile','32 × 16 × 62 mm — the Feather\'s 22.9 mm width is the whole object',false,[top,front],'No ring fits a 16 mm body; ambient light is the Feather\'s single NeoPixel through the base.');}
+
+// C · Dial  80 x 56 x 28
+{const top=svg(96,70);top.innerHTML+=Shell(8,7,80,56,4)+Cav(10.5,9.5,75,51)
+  +R(12,14,62,34,C.cell,'1200 mAh',.35)+R(20,20,52.3,22.7,C.feather,'Feather',.5)
+  +R(13,15,35.8,35.8,C.disp,'ST7789 1.3″',.85)+R(17.9,19.9,26,26,'#111','240×240',.9)
+  +Ring(66,35,22.25,15.85,C.ring,'NeoPixel 16')+Ci(66,35,14,C.enc,'Ø28 knob')+R(58,44,25.5,4.7,C.pres,'presence',.6)+T(2,6,'top');
+ const side=svg(96,44);side.innerHTML+=`<path d="M${8*S},${36*S} L${8*S},${14*S} L${88*S},${8*S} L${88*S},${36*S} Z" fill="#999" fill-opacity=".25" stroke="#666"/>`
+  +R(12,29,62,4.75,C.cell,'cell')+R(20,21,52.3,7.2,C.feather,'Feather')+R(13,13.5,35.8,5.4,C.disp,'display')+R(44,12.5,44.5,6.7,C.ring,'ring 6.7 thick')+R(59.5,0,13.4,12.5,C.enc,'PEC11R body')+Ci(66,-2,14,C.enc,'',.4)+T(2,6,'side · 12° slope');
+ board('C · Dial','80 × 56 × 28 mm — the 16-ring\'s 31.7 mm ID is a knob-sized hole',false,[top,side],'Ring 6.7 + encoder body 12.5 stack to 19 mm above the Feather; two focal points.');}
+
+// D · Wedge 76 x 50 x 32
+{const top=svg(92,64);top.innerHTML+=Shell(8,7,76,50,3)+Cav(10.5,9.5,71,45)+R(12,18,62,34,C.cell,'1200 mAh',.35)+R(18,25,52.3,22.7,C.feather,'Feather',.5)
+  +R(22,15,45.8,36.8,C.disp,'ST7789 1.69″',.85)+R(26,18,38,30,'#111','280×240',.9)+Ring(46,32,18.4,11.65,C.ring,'ring 12, face down')+R(70,20,12.5,13.4,C.enc,'enc')+R(33,10,25.5,4.7,C.pres,'presence',.6)+T(2,6,'top');
+ const side=svg(92,46);side.innerHTML+=`<path d="M${8*S},${40*S} L${8*S},${30*S} L${84*S},${8*S} L${84*S},${40*S} Z" fill="#999" fill-opacity=".25" stroke="#666"/>`
+  +R(12,33,62,4.75,C.cell,'cell')+R(18,25,52.3,7.2,C.feather,'Feather')+`<g transform="rotate(-25 ${40*S} ${22*S})">${R(20,19,45.8,5.4,C.disp,'display 25°')}</g>`+R(28,38,36.8,3.2,C.ring,'ring → desk')+T(2,6,'side · 25° face');
+ board('D · Wedge','76 × 50 × 32 mm — the 1.69″ 38 × 30 active area is the largest that fits a 50 mm-deep 25° face',false,[top,side],'Underglow depends on desk finish; the 62 mm cell sets the 76 mm length.');}
+
+const root=document.getElementById('boards');
+for(const b of boards){const d=document.createElement('div');d.className='board';d.innerHTML=`<h2>${b.title}<span>${b.sub}</span>${b.rec?'<span class="rec">recommended</span>':''}</h2><div class="legend">${b.legend}</div>`;const row=document.createElement('div');row.className='row';b.views.forEach(v=>row.appendChild(v));d.appendChild(row);
+ d.insertAdjacentHTML('beforeend',`<div class="legend">${Object.entries({Feather:C.feather,Display:C.disp,'LED ring':C.ring,Cell:C.cell,'Env sensors':C.sens,Encoder:C.enc,Presence:C.pres}).map(([k,v])=>`<span class="k" style="background:${v}"></span>${k} `).join('')}</div>`);root.appendChild(d);}
+</script></body></html>

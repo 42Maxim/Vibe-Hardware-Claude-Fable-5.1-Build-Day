@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<!-- Smoke test for gl.js: synthetic Puck-shaped geometry, then a set of
+     pixel-level assertions rendered offscreen. Open it and read the console. -->
+<meta charset="utf-8">
+<title>gl.js test</title>
+<style>
+  :root { --bg: #14130f; }
+  html, body { margin: 0; background: var(--bg); color: #cfc8b8;
+               font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  #view { width: 100vw; height: 62vh; display: block; }
+  #log { padding: 8px 12px; white-space: pre-wrap; }
+  .ok { color: #7fcf8f; } .bad { color: #ef6a5a; }
+</style>
+<canvas id="view"></canvas>
+<div id="log"></div>
+<script src="gl.js"></script>
+<script>
+/* ---------- synthetic geometry in the geometry.json shape ----------------- */
+function tube(r0, r1, z0, z1, segs, capTop, capBot) {
+  const V = [], T = [];
+  const push = (x, y, z) => { V.push(x, y, z); return V.length / 3 - 1; };
+  const quad = (a, b, c, d) => { T.push(a, b, c, a, c, d); };
+  for (let i = 0; i < segs; i++) {
+    const a0 = i / segs * 2 * Math.PI, a1 = (i + 1) / segs * 2 * Math.PI;
+    const c0 = Math.cos(a0), s0 = Math.sin(a0), c1 = Math.cos(a1), s1 = Math.sin(a1);
+    // outer wall
+    quad(push(c0 * r1, s0 * r1, z0), push(c1 * r1, s1 * r1, z0),
+         push(c1 * r1, s1 * r1, z1), push(c0 * r1, s0 * r1, z1));
+    if (r0 > 0) {   // inner wall (reverse winding)
+      quad(push(c1 * r0, s1 * r0, z0), push(c0 * r0, s0 * r0, z0),
+           push(c0 * r0, s0 * r0, z1), push(c1 * r0, s1 * r0, z1));
+    }
+    if (capTop) {
+      quad(push(c0 * r0, s0 * r0, z1), push(c1 * r0, s1 * r0, z1),
+           push(c1 * r1, s1 * r1, z1), push(c0 * r1, s0 * r1, z1));
+    }
+    if (capBot) {
+      quad(push(c1 * r0, s1 * r0, z0), push(c0 * r0, s0 * r0, z0),
+           push(c0 * r1, s0 * r1, z0), push(c1 * r1, s1 * r1, z0));
+    }
+  }
+  return { verts: V, tris: T };
+}
+function box(cx, cy, cz, sx, sy, sz) {
+  const x0 = cx - sx / 2, x1 = cx + sx / 2, y0 = cy - sy / 2, y1 = cy + sy / 2,
+        z0 = cz - sz / 2, z1 = cz + sz / 2;
+  const V = [x0,y0,z0, x1,y0,z0, x1,y1,z0, x0,y1,z0, x0,y0,z1, x1,y0,z1, x1,y1,z1, x0,y1,z1];
+  const T = [0,2,1, 0,3,2, 4,5,6, 4,6,7, 0,1,5, 0,5,4,
+             1,2,6, 1,6,5, 2,3,7, 2,7,6, 3,0,4, 3,4,7];
+  return { verts: V, tris: T, bbox: [[x0,y0,z0],[x1,y1,z1]] };
+}
+function merge(a, b) {
+  const n = a.verts.length / 3;
+  return { verts: a.verts.concat(b.verts), tris: a.tris.concat(b.tris.map(i => i + n)) };
+}
+const bboxOf = g => {
+  const lo = [1e9,1e9,1e9], hi = [-1e9,-1e9,-1e9];
+  for (let i = 0; i < g.verts.length; i += 3)
+    for (let k = 0; k < 3; k++) {
+      lo[k] = Math.min(lo[k], g.verts[i+k]); hi[k] = Math.max(hi[k], g.verts[i+k]);
+    }
+  return [lo, hi];
+};
+const part = (id, kind, name, g, color, alpha, explode, extra) =>
+  Object.assign({ id, kind, name, verts: g.verts, tris: g.tris, color,
+                  alpha: alpha === undefined ? 1 : alpha,
+                  explode: explode || [0,0,0], bbox: g.bbox || bboxOf(g) }, extra || {});
+
+const D = 74, H = 24;
+const shell   = tube(34, 37, 0, 21, 96, false, true);          // body wall + floor
+// lid: outer rim + the web between the display and the frosted ring
+const lid     = merge(tube(33.0, 37.0, 21, 24, 96, true, false),
+                      tube(18.4, 26.15, 21, 24, 96, true, false));
+const frost   = tube(26.15, 32.75, 23.0, 23.6, 96, true, true);// frosted LED window
+const glass   = tube(0, 17.0, 23.2, 23.6, 72, true, false);    // display body
+const feather = box(0, 0, 8.6, 52.3, 22.7, 7.2);
+const cell    = box(0, 0, 3.1, 36, 29, 4.75);
+const sens    = box(0, -31, 10, 8, 3, 12);
+
+const GEOM = {
+  units: 'mm', device: { name: 'Puck', D, H },
+  parts: [
+    part('body',  'shell',     'Body',      shell,   [0.72,0.70,0.66], 1, [0,0,-14]),
+    part('lid',   'shell',     'Lid',       lid,     [0.78,0.76,0.72], 1, [0,0,26]),
+    part('frost', 'frost',     'LED window',frost,   [0.92,0.90,0.86], 0.6, [0,0,18], {
+      ring: { center: [0,0,23.3], radius_led: 29.45, leds: 24, start_angle_deg: 90,
+              normal: [0,0,1] } }),
+    part('disp',  'component', 'GC9A01A',   glass,   [0.10,0.10,0.11], 1, [0,0,12], {
+      screen: { center: [0,0,23.6], normal: [0,0,1], up: [0,1,0], radius: 16.25,
+                res: [240,240] } }),
+    part('mcu',   'component', 'Feather',   feather, [0.13,0.28,0.18], 1, [0,0,4]),
+    part('cell',  'component', 'LiPo 500',  cell,    [0.20,0.20,0.24], 1, [0,0,-4]),
+    part('pres',  'component', 'STHS34PF80',sens,    [0.85,0.55,0.15], 1, [0,-10,0], {
+      presence: { origin: [0,-33,10], dir: [0,-1,0], fov_deg: 80, range_mm: 1500 } }),
+    // staged + eased: must not move until the global amount passes 0.6
+    part('screw', 'component', 'M2x6',      box(24,0,20,3,3,8), [0.55,0.55,0.58], 1,
+         [0,0,34], { explodeStage: 0.6, explodeCurve: true })
+  ],
+  fit: {},
+  concepts: [{ id: 'tile', name: 'Tile', parts: [
+    part('tile-body', 'shell', 'Tile', box(0, 0, 31, 32, 16, 62), [0.70,0.68,0.64], 1, [0,0,10]),
+    part('tile-pcb',  'component', 'Feather', box(0, 0, 33, 22.9, 5, 50.8), [0.13,0.28,0.18], 1, [0,8,0])
+  ]}]
+};
+
+/* ---------- boot ---------------------------------------------------------- */
+const cv = document.getElementById('view');
+const v = createViewer(cv, GEOM);
+v.resize();
+addEventListener('resize', () => v.resize());
+
+// A live 240x240 "display".
+const sc = document.createElement('canvas'); sc.width = sc.height = 240;
+function drawScreen(t) {
+  const c = sc.getContext('2d');
+  c.fillStyle = '#05070a'; c.fillRect(0, 0, 240, 240);
+  c.strokeStyle = '#2de0b0'; c.lineWidth = 3;
+  c.beginPath(); c.arc(120, 120, 96, -Math.PI/2, -Math.PI/2 + t * 0.002 % (2*Math.PI)); c.stroke();
+  c.fillStyle = '#f4efe2'; c.font = '600 40px ui-monospace, monospace';
+  c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('21.4', 120, 116);
+  c.fillStyle = '#8a8474'; c.font = '18px ui-monospace, monospace';
+  c.fillText('DEG C', 120, 152);
+}
+drawScreen(0);
+v.setScreen(sc);
+
+// Comet sweep over 24 LEDs.
+function comet(t) {
+  const head = (t * 0.004) % 24, out = [];
+  for (let i = 0; i < 24; i++) {
+    let d = (head - i + 24) % 24;
+    const k = Math.exp(-d * d / 6);
+    out.push([Math.round(255 * k * 0.35), Math.round(255 * k * 0.95), Math.round(255 * k * 0.80)]);
+  }
+  return out;
+}
+v.setLeds(comet(0));
+v.setFitFails(['cell']);
+
+let t0 = 0;
+function frame(ms) {
+  drawScreen(ms); v.setLeds(comet(ms)); v.render(ms);
+  requestAnimationFrame(frame);
+}
+
+/* ---------- assertions ---------------------------------------------------- */
+const log = document.getElementById('log');
+let fails = 0;
+function say(ok, msg) {
+  if (!ok) fails++;
+  const line = (ok ? 'PASS  ' : 'FAIL  ') + msg;
+  console.log(line);
+  const d = document.createElement('div');
+  d.className = ok ? 'ok' : 'bad'; d.textContent = line; log.appendChild(d);
+}
+const gl = cv.getContext('webgl');
+function stats() {                                  // mean RGB of the framebuffer
+  const w = cv.width, h = cv.height, px = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  let r = 0, g = 0, b = 0;
+  for (let i = 0; i < px.length; i += 4) { r += px[i]; g += px[i+1]; b += px[i+2]; }
+  const n = w * h;
+  return { r: r/n, g: g/n, b: b/n, sum: (r+g+b)/n };
+}
+function shot() { v.render(performance.now()); return stats(); }
+
+try {
+  say(v.ok === true, 'viewer constructed (ok=' + v.ok + ')');
+  say(gl.getError() === 0, 'no GL error after setup');
+
+  v.setLeds(null); v.setFitFails([]);
+  v.render(0);
+  const dark = stats();
+  say(dark.sum > 1, 'something rendered (mean rgb sum ' + dark.sum.toFixed(2) + ')');
+  say(gl.getError() === 0, 'no GL error after first render');
+
+  v.setLeds(comet(0));
+  const lit = shot();
+  say(lit.g > dark.g + 0.5, 'LEDs glow: green ' + dark.g.toFixed(2) + ' -> ' + lit.g.toFixed(2));
+
+  v.setLeds(null);
+  const off = shot();
+  say(Math.abs(off.sum - dark.sum) < 0.01, 'nothing glows with LEDs at zero');
+
+  v.setInside(true);
+  const inside = shot();
+  say(Math.abs(inside.sum - off.sum) > 0.05, 'inside mode changes the image');
+  v.setInside(false);
+
+  v.setExplode(1);
+  const ex = shot();
+  say(Math.abs(ex.sum - off.sum) > 0.05, 'explode changes the image');
+  v.setExplode(0);
+
+  v.setConcept('tile');
+  const con = shot();
+  say(Math.abs(con.sum - off.sum) > 0.05, 'concept swaps the geometry');
+  v.setConcept(null);
+
+  v.setFitFails(['cell']); v.setInside(true);
+  const fitA = shot();
+  v.setFitFails([]);
+  const fitB = shot();
+  say(Math.abs(fitA.r - fitB.r) > 0.002, 'fit-fail tint visible (red ' +
+      fitB.r.toFixed(3) + ' -> ' + fitA.r.toFixed(3) + ')');
+  v.setInside(false);
+
+  v.setBackground('#2a3f55');
+  const bgA = shot();
+  say(bgA.b > off.b + 5, 'setBackground repaints (blue ' + off.b.toFixed(1) +
+      ' -> ' + bgA.b.toFixed(1) + ')');
+  v.setBackground(getComputedStyle(document.documentElement)
+    .getPropertyValue('--bg').trim() || '#14130f');
+
+  v.camera({ yaw: 0.2, pitch: 1.2 });
+  const cA = shot();
+  v.resetView();
+  const cB = shot();
+  say(Math.abs(cA.sum - cB.sum) > 0.02, 'camera moves and resets');
+
+  // ---- zoom (0 = tight .. 1 = ~3x) ----------------------------------------
+  v.setZoom(0);
+  const dTight = v.camera().dist;
+  say(Math.abs(v.getZoom() - 0) < 0.01, 'setZoom(0) -> getZoom ' + v.getZoom().toFixed(3));
+  v.setZoom(1);
+  const dFar = v.camera().dist;
+  say(Math.abs(dFar / dTight - 3) < 0.02, 'setZoom(1) is 3x tight (' +
+      dTight.toFixed(0) + ' -> ' + dFar.toFixed(0) + ' mm)');
+  say(Math.abs(v.getZoom() - 1) < 0.01, 'setZoom(1) -> getZoom ' + v.getZoom().toFixed(3));
+  v.setZoom(0.5); say(Math.abs(v.getZoom() - 0.5) < 0.01, 'zoom round-trips at 0.5');
+  v.camera({ dist: dTight * 2 });
+  say(Math.abs(v.camera().dist - dTight * 2) < 0.5, 'camera({dist}) still works');
+  v.resetView();
+
+  // ---- wheel now explodes, and fires onExplode ----------------------------
+  let lastCb = -1;
+  v.onExplode(t => { lastCb = t; });
+  v.setExplode(0);
+  cv.dispatchEvent(new WheelEvent('wheel', { deltaY: 300, cancelable: true, bubbles: false }));
+  say(lastCb > 0, 'wheel down raises the explode target -> onExplode(' + lastCb.toFixed(3) + ')');
+  const distBefore = v.camera().dist;
+  cv.dispatchEvent(new WheelEvent('wheel', { deltaY: 300, cancelable: true }));
+  say(v.camera().dist === distBefore, 'wheel no longer zooms (dist unchanged)');
+  // the wheel target is eased into, not applied in one frame
+  v.render(0);
+  const easeA = v.anchors().find(a => a.group === 'mcu').y;
+  for (let i = 1; i < 60; i++) v.render(i * 16);
+  const easeB = v.anchors().find(a => a.group === 'mcu').y;
+  const settled = v.anchors().find(a => a.group === 'mcu').y;
+  say(Math.abs(easeB - easeA) > 2, 'explode eases toward the wheel target over frames (' +
+      easeA.toFixed(1) + ' -> ' + easeB.toFixed(1) + ')');
+  for (let i = 60; i < 120; i++) v.render(i * 16);
+  say(Math.abs(v.anchors().find(a => a.group === 'mcu').y - settled) < 1.0, 'easing settles');
+  cv.dispatchEvent(new WheelEvent('wheel', { deltaY: -4000, cancelable: true }));
+  say(lastCb === 0, 'wheel up clamps the target at 0');
+  v.setExplode(0);
+
+  // ---- anchors -------------------------------------------------------------
+  v.render(0);
+  const an = v.anchors();
+  const byG = Object.fromEntries(an.map(a => [a.group, a]));
+  say(an.length === 8, 'anchors(): one per group incl. shells (' +
+      an.map(a => a.group).join(',') + ')');
+  say(['body','lid','frost'].every(g => byG[g]), 'shells have anchors');
+  const a0 = byG.mcu;
+  say(a0.visible === true && a0.x > 0 && a0.x < cv.clientWidth && a0.depth > 0,
+      'mcu anchor on screen at ' + a0.x.toFixed(0) + ',' + a0.y.toFixed(0) +
+      ' depth ' + a0.depth.toFixed(0));
+  say(v.anchors() === an, 'anchors cached within a frame');
+  v.render(1); say(v.anchors() !== an, 'anchors recomputed after a render');
+
+  // anchors follow the explode offsets
+  const yBefore = byG.mcu.y;
+  v.setExplode(1); v.render(2);
+  const mcuUp = v.anchors().find(a => a.group === 'mcu');
+  say(Math.abs(mcuUp.y - yBefore) > 2, 'anchors move with the explode (mcu y ' +
+      yBefore.toFixed(0) + ' -> ' + mcuUp.y.toFixed(0) + ')');
+  v.setExplode(0);
+
+  // ---- explodeStage / explodeCurve ----------------------------------------
+  const screwY = e => { v.setExplode(e); v.render(3);
+                        return v.anchors().find(a => a.group === 'screw').y; };
+  const s0 = screwY(0), s5 = screwY(0.5), s8 = screwY(0.8), s10 = screwY(1);
+  say(Math.abs(s5 - s0) < 0.01, 'staged part has not moved at t=0.5 (stage 0.6)');
+  say(s10 < s0 - 5, 'staged part lifts by t=1 (y ' + s0.toFixed(0) + ' -> ' + s10.toFixed(0) + ')');
+  // smoothstep: half-way through its own range it is still eased, not linear
+  const lin = s0 + (s10 - s0) * 0.5;
+  say(Math.abs(s8 - lin) > 0.5, 'explodeCurve eases (t=0.8 at ' + s8.toFixed(1) +
+      ', linear would be ' + lin.toFixed(1) + ')');
+  v.setExplode(0);
+
+  // ---- hover pick ----------------------------------------------------------
+  let hov = 'unset';
+  v.onHover(g => { hov = g; });
+  v.render(4);
+  const tgt = v.anchors().find(a => a.group === 'pres');
+  const rc = cv.getBoundingClientRect();
+  cv.dispatchEvent(new PointerEvent('pointermove', { pointerType: 'mouse',
+    clientX: rc.left + tgt.x, clientY: rc.top + tgt.y, bubbles: false }));
+  say(hov === 'pres', 'hover picks the group under the pointer (' + hov + ')');
+  cv.dispatchEvent(new PointerEvent('pointermove', { pointerType: 'mouse',
+    clientX: rc.left + 2, clientY: rc.top + 2 }));
+  say(hov === null, 'hover clears off the parts (' + hov + ')');
+
+  // ---- studio look ---------------------------------------------------------
+  const darkShot = shot();
+  v.setBackground('#f2f0ea');
+  const lightFlat = shot();
+  say(lightFlat.sum > darkShot.sum + 20, 'light background brightens the frame (' +
+      darkShot.sum.toFixed(1) + ' -> ' + lightFlat.sum.toFixed(1) + ')');
+  v.setExplode(1);
+  const lightEx = shot();
+  say(lightEx.sum < lightFlat.sum, 'studio per-part shadows darken the exploded frame (' +
+      lightFlat.sum.toFixed(1) + ' -> ' + lightEx.sum.toFixed(1) + ')');
+  v.setExplode(0);
+  v.setBackground('#14130f');
+
+  say(gl.getError() === 0, 'no GL error after all state changes');
+  say(v.triangles > 0, 'triangle count ' + v.triangles);
+
+  const t = performance.now();
+  for (let i = 0; i < 120; i++) v.render(t + i * 16);
+  const dt = performance.now() - t;
+  say(dt / 120 < 16.7, '120 frames in ' + dt.toFixed(0) + ' ms (' +
+      (dt / 120).toFixed(2) + ' ms/frame)');
+
+  // worst case: studio, fully exploded, per-part shadows, labels queried
+  v.setBackground('#f2f0ea'); v.setExplode(1);
+  const t2 = performance.now();
+  for (let i = 0; i < 120; i++) { v.render(t2 + i * 16); v.anchors(); }
+  const dt2 = performance.now() - t2;
+  say(dt2 / 120 < 16.7, 'studio + exploded + anchors: 120 frames in ' + dt2.toFixed(0) +
+      ' ms (' + (dt2 / 120).toFixed(2) + ' ms/frame)');
+  v.setExplode(0); v.setBackground('#14130f');
+
+  // no-WebGL path must not throw
+  const fake = document.createElement('canvas');
+  fake.getContext = () => null;
+  const stub = createViewer(fake, GEOM);
+  stub.render(0); stub.setInside(true); stub.setLeds(comet(0)); stub.resize();
+  say(stub.ok === false, 'no-WebGL fallback returns a safe stub');
+} catch (e) {
+  say(false, 'exception: ' + (e && e.stack || e));
+}
+console.log(fails === 0 ? 'ALL TESTS PASSED' : (fails + ' TEST(S) FAILED'));
+const head = document.createElement('div');
+head.className = fails === 0 ? 'ok' : 'bad';
+head.textContent = fails === 0 ? 'ALL TESTS PASSED' : fails + ' TEST(S) FAILED';
+log.prepend(head);
+window.__TEST_FAILS__ = fails;
+requestAnimationFrame(frame);
+</script>

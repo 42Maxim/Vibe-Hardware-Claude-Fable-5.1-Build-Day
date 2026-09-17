@@ -1,0 +1,327 @@
+{
+  "_doc": "Single source of truth for part dimensions (mm), pins, I2C addresses, currents (mA) per firmware mode, prices. Sources in docs/01-survey.md. 'unverified' fields are marked.",
+  "cell": {
+    "id": "cell",
+    "name": "LiPo cell (AU: Core CE04375 400 mAh 38x25x6; US: Adafruit 1578 500 mAh 36x29x4.75)",
+    "dims": [
+      25,
+      38,
+      6
+    ],
+    "capacity_mAh": 400,
+    "capacity_note": "runtime computed on the 400 mAh AU cell (conservative); the 500 mAh US cell gives 1.25x",
+    "price": {
+      "AU": 5.55,
+      "US": 7.95
+    }
+  },
+  "mcu": {
+    "id": "mcu",
+    "name": "Adafruit ESP32-S3 Feather 4MB/2MB PSRAM (ADA5477)",
+    "dims": [
+      22.7,
+      52.3,
+      7.2
+    ],
+    "i2c": {
+      "fuel_gauge": "0x36 (MAX17048) or 0x0B (LC709203F, older revision)"
+    },
+    "current_mA": {
+      "SLEEP": 0.1,
+      "PRESENT": 1.88,
+      "NIGHT": 1.88,
+      "ATTENTION": 33.1,
+      "WAKE": 33.1
+    },
+    "current_src": "SLEEP: Adafruit '~100uA deep sleep'. PRESENT/NIGHT: 5% duty at 80 MHz dual-core 33.1 mA (ESP32-S3 DS Table 5-9) + 95% light-sleep 0.24 mA (Table 5-10) = 1.88 mA. ATTENTION/WAKE: 80 MHz dual-core 33.1 mA continuous.",
+    "price": {
+      "AU": 32.6,
+      "US": 17.5
+    }
+  },
+  "display": {
+    "id": "display",
+    "name": "Adafruit 1.28in round 240x240 GC9A01A (ADA6178)",
+    "dims": [
+      42.4,
+      36.2,
+      5.4
+    ],
+    "glass": [
+      38.1,
+      35.6
+    ],
+    "active_diameter": 32.5,
+    "res": [
+      240,
+      240
+    ],
+    "holes_spacing": 22.8,
+    "holes_note": "hole positions on the PCB unverified",
+    "current_mA": {
+      "SLEEP": 0.0,
+      "PRESENT": 12.5,
+      "NIGHT": 3.1,
+      "ATTENTION": 31.2,
+      "WAKE": 31.2
+    },
+    "current_src": "31.2 mA whole module at 3.3 V with backlight full (Waveshare GC9A01 twin, wiki); Adafruit module unverified. PRESENT = 40% backlight PWM, NIGHT = 10%, ATTENTION/WAKE = 100%. SLEEP = backlight off + display sleep, residual unverified (taken as 0).",
+    "price": {
+      "AU": 32.55,
+      "US": 17.5
+    }
+  },
+  "ring": {
+    "id": "ring",
+    "name": "NeoPixel Ring 24 (ADA1586)",
+    "od": 65.5,
+    "id_": 52.3,
+    "thick": 3.2,
+    "leds": 24,
+    "current_mA": {
+      "SLEEP": 0.0,
+      "PRESENT": 0.0,
+      "NIGHT": 0.0,
+      "ATTENTION": 312.0,
+      "WAKE": 312.0
+    },
+    "current_src": "Rail switched off in SLEEP/PRESENT/NIGHT (0 mA). On: 24 x (1 mA dark [PJRC] + 20% of 60 mA full white [Adafruit]) = 312 mA. Brightness cap LED_MAX_BRIGHTNESS in config.h.",
+    "price": {
+      "AU": 33.9,
+      "US": 16.95
+    }
+  },
+  "presence": {
+    "id": "presence",
+    "name": "Adafruit STHS34PF80 IR presence (ADA6426)",
+    "dims": [
+      25.5,
+      17.6,
+      4.7
+    ],
+    "fov_deg": 80,
+    "range_m": 4,
+    "i2c": "0x5A",
+    "current_mA": {
+      "SLEEP": 0.01,
+      "PRESENT": 0.01,
+      "NIGHT": 0.01,
+      "ATTENTION": 0.01,
+      "WAKE": 0.01
+    },
+    "current_src": "10 uA at 1 Hz ODR (SparkFun hookup guide / ST); always on, INT wakes the MCU.",
+    "price": {
+      "AU": 29.05,
+      "US": 14.95
+    }
+  },
+  "env": {
+    "id": "env",
+    "name": "Adafruit SHT41 (ADA5776)",
+    "dims": [
+      25.5,
+      17.6,
+      4.8
+    ],
+    "i2c": "0x44",
+    "current_mA": {
+      "SLEEP": 0.0004,
+      "PRESENT": 0.0004,
+      "NIGHT": 0.0004,
+      "ATTENTION": 0.0004,
+      "WAKE": 0.0004
+    },
+    "current_src": "0.4 uA at 1 Hz (Adafruit page).",
+    "price": {
+      "AU": 10.5,
+      "US": 5.95
+    }
+  },
+  "lux": {
+    "id": "lux",
+    "name": "Adafruit VEML7700 (ADA4162)",
+    "dims": [
+      25.4,
+      17.8,
+      4.6
+    ],
+    "dims_note": "PCB size unverified; STEMMA QT class board assumed",
+    "i2c": "0x10 (fixed)",
+    "current_mA": {
+      "SLEEP": 0.008,
+      "PRESENT": 0.045,
+      "NIGHT": 0.045,
+      "ATTENTION": 0.045,
+      "WAKE": 0.045
+    },
+    "current_src": "Vishay DS p.2: 45 uA operating (PSM off), 8 uA PSM mode 600 ms refresh used in SLEEP.",
+    "price": {
+      "AU": 9.1,
+      "US": 4.95
+    }
+  },
+  "encoder": {
+    "id": "encoder",
+    "name": "Bourns PEC11R-4220F-S0024 (20 mm D shaft, switch, 24 det)",
+    "body": [
+      12.5,
+      13.4,
+      10.7
+    ],
+    "body_note": "12.5 x 13.4 face, 7.0 mm behind mounting surface + 3.7 mm pins (Bourns DS)",
+    "shaft_len": 20,
+    "thread_len": 7,
+    "bushing": "M7x0.75",
+    "current_mA": {
+      "SLEEP": 0.0,
+      "PRESENT": 0.0,
+      "NIGHT": 0.0,
+      "ATTENTION": 0.0,
+      "WAKE": 0.0
+    },
+    "price": {
+      "AU": 3.92,
+      "US": 2.69
+    }
+  },
+  "pins": [
+    {
+      "gpio": 3,
+      "feather": "SDA",
+      "to": "I2C SDA: STHS34PF80 (0x5A), SHT41 (0x44), VEML7700 (0x10), fuel gauge (0x36/0x0B)"
+    },
+    {
+      "gpio": 4,
+      "feather": "SCL",
+      "to": "I2C SCL (same bus)"
+    },
+    {
+      "gpio": 7,
+      "feather": "I2C_POWER",
+      "to": "STEMMA QT 3.3 V switched rail -> NeoPixel ring VCC (ring is the only load on the switched rail; sensors on always-on 3V)"
+    },
+    {
+      "gpio": 36,
+      "feather": "SCK",
+      "to": "Display SCK"
+    },
+    {
+      "gpio": 35,
+      "feather": "MOSI",
+      "to": "Display MOSI (SI)"
+    },
+    {
+      "gpio": 37,
+      "feather": "MISO",
+      "to": "unused (display SO not connected)"
+    },
+    {
+      "gpio": 10,
+      "feather": "D10",
+      "to": "Display TCS (chip select)"
+    },
+    {
+      "gpio": 9,
+      "feather": "D9",
+      "to": "Display D/C"
+    },
+    {
+      "gpio": 6,
+      "feather": "D6",
+      "to": "Display RST"
+    },
+    {
+      "gpio": 5,
+      "feather": "D5",
+      "to": "Display Lite (backlight PWM, LEDC)"
+    },
+    {
+      "gpio": 11,
+      "feather": "D11",
+      "to": "NeoPixel ring DIN"
+    },
+    {
+      "gpio": 18,
+      "feather": "A0",
+      "to": "Encoder A (RTC GPIO, input pull-up)"
+    },
+    {
+      "gpio": 17,
+      "feather": "A1",
+      "to": "Encoder B (RTC GPIO, input pull-up)"
+    },
+    {
+      "gpio": 16,
+      "feather": "A2",
+      "to": "Encoder switch (RTC GPIO, ext1 wake source)"
+    },
+    {
+      "gpio": 15,
+      "feather": "A3",
+      "to": "STHS34PF80 INT (RTC GPIO, ext1 wake source)"
+    },
+    {
+      "gpio": 33,
+      "feather": "NEOPIXEL",
+      "to": "on-board NeoPixel (unused, kept off)"
+    },
+    {
+      "gpio": 21,
+      "feather": "NEOPIXEL_POWER",
+      "to": "on-board NeoPixel power (held LOW)"
+    },
+    {
+      "gpio": 13,
+      "feather": "D13/LED",
+      "to": "on-board red LED (unused)"
+    },
+    {
+      "gpio": 0,
+      "feather": "BOOT",
+      "to": "boot button (reserved)"
+    },
+    {
+      "gpio": 12,
+      "feather": "D12",
+      "to": "spare"
+    },
+    {
+      "gpio": 14,
+      "feather": "A4",
+      "to": "spare"
+    },
+    {
+      "gpio": 8,
+      "feather": "A5",
+      "to": "spare"
+    },
+    {
+      "gpio": 39,
+      "feather": "TX",
+      "to": "spare / debug"
+    },
+    {
+      "gpio": 38,
+      "feather": "RX",
+      "to": "spare / debug"
+    }
+  ],
+  "pins_src": "GPIO numbers from arduino-esp32 3.3.11 variants/adafruit_feather_esp32s3/pins_arduino.h",
+  "i2c_notes": [
+    "DRV2605L haptic (no-limit tier) is fixed at 0x5A and collides with STHS34PF80 -> not on the bus.",
+    "Adafruit I2C QT Rotary Encoder (ADA4991) default 0x36 collides with the MAX17048 fuel gauge -> direct GPIO encoder used instead."
+  ],
+  "wifi": {
+    "id": "wifi",
+    "name": "Wi-Fi listen for the Claude usage push (optional, CLAUDE_WIFI_ENABLED)",
+    "optional": true,
+    "current_mA": {
+      "SLEEP": 0.0,
+      "PRESENT": 20.0,
+      "NIGHT": 20.0,
+      "ATTENTION": 20.0,
+      "WAKE": 20.0
+    },
+    "current_src": "unverified estimate: station connected in modem-sleep (DTIM listen). ESP32-S3 DS gives only peaks (Wi-Fi RX 88 mA, TX 283-340 mA); the average depends on the AP's DTIM. Off in SLEEP and when CLAUDE_WIFI_ENABLED = 0 (default)."
+  }
+}
